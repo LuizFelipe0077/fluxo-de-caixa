@@ -529,7 +529,6 @@ async function exportarParaExcel() {
 
   // Mobile: tenta o compartilhamento nativo (WhatsApp, e-mail, etc.).
   const arquivo = new File([blob], nomeArquivo, { type: blob.type });
-  
   if (navigator.canShare && navigator.canShare({ files: [arquivo] })) {
     try {
       await navigator.share({ files: [arquivo], title: 'Controle Estética Integrativa', text: 'Planilha de controle financeiro.' });
@@ -537,13 +536,8 @@ async function exportarParaExcel() {
       return;
     } catch (erro) {
       if (erro && erro.name === 'AbortError') return;   // usuário cancelou a partilha
-      
-      // ALERTA 1: Mostra se deu erro na hora de abrir a janela
-      alert('O celular bloqueou o compartilhamento por este motivo: ' + erro); 
+      // qualquer outra falha: cai para o download tradicional
     }
-  } else {
-      // ALERTA 2: Mostra se o celular disse que não suporta compartilhar arquivos
-      alert('Seu navegador atual disse que NÃO suporta o recurso canShare para arquivos.');
   }
 
   // Desktop / navegadores sem Web Share: download direto.
