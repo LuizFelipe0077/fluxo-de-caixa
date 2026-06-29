@@ -205,8 +205,13 @@ input[type="date"]{min-height:46px}
 .chip{font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:99px;background:var(--bg-2);border:1px solid var(--linha);color:var(--tinta-2)}
 .chip-destaque{background:var(--terra-tint);color:var(--terra-700);border-color:transparent}
 .mov-rodape{display:flex;justify-content:space-between;align-items:center;margin-top:9px;font-size:11.5px;color:var(--tinta-3)}
+.mov-rodape-dir{display:flex;align-items:center;gap:10px}
 .mov-auditoria{display:flex;align-items:center;gap:5px}
 .mov-data{font-weight:600;color:var(--tinta-2)}
+.mov-acoes{display:flex;gap:4px}
+.mov-acao{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;color:var(--tinta-3);border:1px solid transparent;transition:background .15s var(--suave),color .15s var(--suave),border-color .15s var(--suave)}
+.mov-acao:hover{background:var(--bg-2);color:var(--tinta);border-color:var(--linha)}
+.mov-acao.excluir:hover{background:var(--out-tint);color:var(--out);border-color:transparent}
 
 .estado-vazio{text-align:center;padding:46px 20px;color:var(--tinta-3)}
 .estado-vazio svg{opacity:.4;margin-bottom:12px}
@@ -240,7 +245,6 @@ input[type="date"]{min-height:46px}
 .nav-item span{font-size:11px;font-weight:700}
 .nav-item:active{transform:scale(.92)}
 .nav-item.ativo{color:var(--terra-700)}
-.nav-exportar{font-size:0}
 
 /* ===================== DIÁLOGOS (<dialog>) ===================== */
 .dialogo{border:none;padding:0;background:transparent;max-width:560px;width:100%;margin:auto auto 0;color:var(--tinta)}
@@ -296,7 +300,6 @@ input[type="date"]{min-height:46px}
   .mini-cartoes{gap:14px}
   .nav-inferior{flex-direction:column;top:0;bottom:auto;right:auto;width:94px;height:100dvh;border-top:none;border-right:1px solid var(--vidro-borda);padding:92px 0 0;gap:6px}
   .nav-item{flex:0 0 auto;padding:14px 0;gap:6px}
-  .nav-exportar{font-size:11px}
   .aplicacao{padding-left:94px;padding-bottom:0}
   .topo{padding-left:28px}
   .fab{right:28px;bottom:28px;width:62px;height:62px}
@@ -315,3 +318,16 @@ input[type="date"]{min-height:46px}
 @media (prefers-reduced-motion:reduce){
   *{animation:none !important;transition:none !important;scroll-behavior:auto !important}
 }
+
+/* ===================== DIÁLOGO DE CONFIRMAÇÃO ===================== */
+.dialogo-confirmar{max-width:392px;margin:auto;padding:0 20px}
+.dialogo-confirmar .dialogo-conteudo{border-radius:24px;padding:28px 26px 22px;text-align:center;max-height:none}
+.confirmar-icone{width:54px;height:54px;border-radius:16px;margin:0 auto 16px;display:grid;place-items:center;font-size:26px;font-weight:800;font-family:var(--fonte-display);background:var(--terra-tint);color:var(--terra-700)}
+.confirmar-icone.perigo{background:var(--out-tint);color:var(--out)}
+.confirmar-icone.sair{background:var(--terra-tint);color:var(--terra-700)}
+#confirmar-titulo{font-size:21px;margin-bottom:9px}
+.confirmar-mensagem{color:var(--tinta-2);font-size:14.5px;line-height:1.5;margin-bottom:22px}
+.confirmar-acoes{display:flex;gap:10px}
+.btn-perigo{background:var(--out);color:#fff;box-shadow:0 8px 20px rgba(192,96,63,.26)}
+.btn-perigo:hover{background:#a84f31}
+.dialogo-confirmar[open]{animation:surgir .32s var(--mola)}

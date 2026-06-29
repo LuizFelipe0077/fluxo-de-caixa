@@ -178,13 +178,13 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>
       <span>Entradas</span>
     </button>
-    <button class="nav-item nav-exportar" data-tela="exportar" aria-label="Exportar para Excel">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg>
-      <span>Exportar</span>
-    </button>
     <button class="nav-item" data-tela="saidas">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
       <span>Saídas</span>
+    </button>
+    <button class="nav-item" data-tela="exportar" aria-label="Exportar para Excel">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg>
+      <span>Exportar</span>
     </button>
   </nav>
 </div>
@@ -211,7 +211,7 @@
   <div class="dialogo-conteudo">
     <span class="dialogo-puxador" aria-hidden="true"></span>
     <header class="dialogo-cabecalho">
-      <h2>Nova entrada</h2>
+      <h2 id="titulo-dialogo-entrada">Nova entrada</h2>
       <button class="btn-icone" data-fechar="dialogo-entrada" aria-label="Fechar">✕</button>
     </header>
     <form id="form-entrada" class="dialogo-form" autocomplete="off" novalidate>
@@ -243,7 +243,7 @@
         <div class="calc-final-linha"><span>Lucro obtido</span><strong id="calc-final">R$ 0,00</strong></div>
       </div>
 
-      <button type="submit" class="btn btn-primario btn-bloco">Salvar entrada</button>
+      <button type="submit" id="btn-salvar-entrada" class="btn btn-primario btn-bloco">Salvar entrada</button>
     </form>
   </div>
 </dialog>
@@ -253,7 +253,7 @@
   <div class="dialogo-conteudo">
     <span class="dialogo-puxador" aria-hidden="true"></span>
     <header class="dialogo-cabecalho">
-      <h2>Nova saída</h2>
+      <h2 id="titulo-dialogo-saida">Nova saída</h2>
       <button class="btn-icone" data-fechar="dialogo-saida" aria-label="Fechar">✕</button>
     </header>
     <form id="form-saida" class="dialogo-form" autocomplete="off" novalidate>
@@ -265,8 +265,21 @@
         <div class="campo"><label class="campo-rotulo" for="s-valor">Valor (R$)</label><input type="number" step="0.01" min="0" id="s-valor" inputmode="decimal" placeholder="0,00" required></div>
       </div>
       <div class="campo"><label class="campo-rotulo" for="s-obs">Observações <i>(opcional)</i></label><input type="text" id="s-obs" placeholder="Detalhe da despesa"></div>
-      <button type="submit" class="btn btn-primario btn-bloco">Salvar saída</button>
+      <button type="submit" id="btn-salvar-saida" class="btn btn-primario btn-bloco">Salvar saída</button>
     </form>
+  </div>
+</dialog>
+
+<!-- ===================== DIÁLOGO: CONFIRMAÇÃO ===================== -->
+<dialog id="dialogo-confirmar" class="dialogo dialogo-confirmar">
+  <div class="dialogo-conteudo confirmar-conteudo">
+    <div id="confirmar-icone" class="confirmar-icone" aria-hidden="true">?</div>
+    <h2 id="confirmar-titulo">Confirmar</h2>
+    <p id="confirmar-mensagem" class="confirmar-mensagem"></p>
+    <div class="confirmar-acoes">
+      <button type="button" id="confirmar-cancelar" class="btn btn-fantasma btn-bloco">Cancelar</button>
+      <button type="button" id="confirmar-ok" class="btn btn-primario btn-bloco">Confirmar</button>
+    </div>
   </div>
 </dialog>
 

@@ -1,12 +1,13 @@
 /**
  * Camada de serviço: única ponte entre o frontend e o backend (Apps Script).
- * Em modo demonstração, opera sobre os dados históricos em memória.
+ * O sistema é 100% online. Toda operação (inclusive a leitura dos dados)
+ * exige autenticação: as credenciais do usuário logado acompanham cada
+ * requisição e são revalidadas no servidor.
  *
  * Nenhuma outra parte do sistema deve usar fetch() diretamente.
  */
 
 import { CONFIG } from '../config.js';
-import { ENTRADAS_HISTORICAS, SAIDAS_HISTORICAS } from '../data/seed.js';
 
 function normalizarEntrada(registro, indice) {
   return {
@@ -40,18 +41,28 @@ function normalizarSaida(registro, indice) {
   };
 }
 
-const esperar = ms => new Promise(resolve => setTimeout(resolve, ms));
-
 class ServicoApi {
-  #memoria = { entradas: [], saidas: [] };
-  #carregouMemoria = false;
+  #credenciais = null;
 
-  get online() {
-    return CONFIG.USAR_API;
+  definirCredenciais(usuario, hashSenha) {
+    this.#credenciais = { usuario, hashSenha };
   }
 
-  /** Requisição POST ao Apps Script. text/plain evita preflight CORS. */
-  async #enviar(corpo) {
+  limparCredenciais() {
+    this.#credenciais = null;
+  }
+
+  /**
+   * POST ao Apps Script. text/plain evita preflight CORS.
+   * As credenciais (usuario + hashSenha) seguem em todas as requisições.
+   */
+  async #postar(action, payload = {}, credenciais = this.#credenciais) {
+    const corpo = {
+      action,
+      usuario: credenciais ? credenciais.usuario : '',
+      hashSenha: credenciais ? credenciais.hashSenha : '',
+      payload
+    };
     const resposta = await fetch(CONFIG.URL_WEB_APP, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -62,57 +73,27 @@ class ServicoApi {
     return resposta.json();
   }
 
-  async #buscar(parametros) {
-    const url = `${CONFIG.URL_WEB_APP}?${new URLSearchParams(parametros)}`;
-    const resposta = await fetch(url, { redirect: 'follow' });
-    if (!resposta.ok) throw new Error('Falha na comunicação com o servidor.');
-    return resposta.json();
+  /** Valida credenciais no backend. Retorna { ok, nome } ou { ok:false }. */
+  async autenticar(usuario, hashSenha) {
+    return this.#postar('login', {}, { usuario, hashSenha });
   }
 
-  /** Carrega todos os lançamentos. */
+  /** Leitura protegida: exige sessão autenticada. */
   async carregarLancamentos() {
-    if (!this.online) {
-      await esperar(CONFIG.ATRASO_SIMULADO_MS);   // mostra skeletons no demo
-      if (!this.#carregouMemoria) {
-        this.#memoria.entradas = ENTRADAS_HISTORICAS.map(normalizarEntrada);
-        this.#memoria.saidas = SAIDAS_HISTORICAS.map(normalizarSaida);
-        this.#carregouMemoria = true;
-      }
-      return {
-        entradas: this.#memoria.entradas.map(normalizarEntrada),
-        saidas: this.#memoria.saidas.map(normalizarSaida)
-      };
-    }
-    const dados = await this.#buscar({ action: 'getData' });
+    const dados = await this.#postar('getData');
+    if (dados && dados.ok === false) throw new Error(dados.erro || 'Não autorizado.');
     return {
       entradas: (dados.entradas || []).map(normalizarEntrada),
       saidas: (dados.saidas || []).map(normalizarSaida)
     };
   }
 
-  /** Valida credenciais. Online: backend decide. Demo: resolvido no auth.js. */
-  async autenticar(usuario, hashSenha) {
-    if (!this.online) return null;   // tratado localmente em modo demo
-    return this.#enviar({ action: 'login', payload: { usuario, hashSenha } });
-  }
-
-  async adicionarEntrada(registro) {
-    if (!this.online) {
-      await esperar(300);
-      this.#memoria.entradas.push(normalizarEntrada(registro, this.#memoria.entradas.length));
-      return { ok: true };
-    }
-    return this.#enviar({ action: 'addEntrada', payload: registro });
-  }
-
-  async adicionarSaida(registro) {
-    if (!this.online) {
-      await esperar(300);
-      this.#memoria.saidas.push(normalizarSaida(registro, this.#memoria.saidas.length));
-      return { ok: true };
-    }
-    return this.#enviar({ action: 'addSaida', payload: registro });
-  }
+  adicionarEntrada(registro) { return this.#postar('addEntrada', registro); }
+  adicionarSaida(registro) { return this.#postar('addSaida', registro); }
+  editarEntrada(registro) { return this.#postar('editEntrada', registro); }
+  editarSaida(registro) { return this.#postar('editSaida', registro); }
+  excluirEntrada(id) { return this.#postar('deleteEntrada', { id }); }
+  excluirSaida(id) { return this.#postar('deleteSaida', { id }); }
 }
 
 export const api = new ServicoApi();

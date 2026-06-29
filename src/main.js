@@ -1,16 +1,16 @@
 /**
  * Ponto de entrada. Orquestra autenticação, navegação, formulários,
- * filtros e exportação, delegando regras ao domínio e renderização à UI.
+ * filtros, CRUD (criar/editar/excluir) e exportação, delegando regras
+ * ao domínio e a renderização à UI.
  */
 
-import { CONFIG } from './config.js';
 import { estado } from './core/estado.js';
 import { sessao } from './core/auth.js';
 import { api } from './services/api.js';
 import {
   calcularLucroObtido, descreverParcela, TAXAS_CREDITO,
   FORMAS_PAGAMENTO, SERVICOS, TIPOS_ENTRADA, CATEGORIAS_SAIDA, TIPOS_SAIDA,
-  somarEntradas, somarSaidas, listarMesesDisponiveis
+  listarMesesDisponiveis
 } from './domain/financeiro.js';
 import {
   sanitizarEntradaDeDados, validarValorMonetario, validarOpcao,
@@ -27,22 +27,19 @@ import {
 
 const $ = id => document.getElementById(id);
 let formaSelecionada = 'Pix';
+let idEntradaEmEdicao = null;   // null = nova entrada
+let idSaidaEmEdicao = null;     // null = nova saída
 
 /* ===================== INICIALIZAÇÃO ===================== */
 window.addEventListener('DOMContentLoaded', () => {
   configurarSelects();
   registrarEventos();
-  refletirModoConexao();
+  $('badge-sync').className = 'badge-sync online';
+  $('badge-sync').textContent = '● Online';
 
   const sessaoAtiva = sessao.restaurar();
   if (sessaoAtiva) abrirAplicacao(sessaoAtiva.nome);
 });
-
-function refletirModoConexao() {
-  const badge = $('badge-sync');
-  badge.className = `badge-sync ${CONFIG.USAR_API ? 'online' : 'demo'}`;
-  badge.textContent = CONFIG.USAR_API ? '● Online' : '● Demo';
-}
 
 /* ===================== AUTENTICAÇÃO ===================== */
 async function aoEnviarLogin(evento) {
@@ -62,7 +59,7 @@ async function aoEnviarLogin(evento) {
       erro.textContent = 'Usuário ou senha incorretos.';
     }
   } catch {
-    erro.textContent = 'Não foi possível validar o acesso. Tente novamente.';
+    erro.textContent = 'Não foi possível validar o acesso. Verifique a conexão.';
   } finally {
     botao.disabled = false;
     botao.textContent = 'Entrar';
@@ -96,8 +93,15 @@ async function carregarDados() {
     renderizarTudo();
   } catch {
     estado.definir({ carregando: false });
-    exibirToast('Falha ao carregar os dados.', 'erro');
+    ocultarSkeletonsPainel();
+    exibirToast('Falha ao carregar os dados. Verifique a conexão.', 'erro');
   }
+}
+
+async function recarregarLocal() {
+  const { entradas, saidas } = await api.carregarLancamentos();
+  estado.definir({ entradas, saidas });
+  renderizarTudo();
 }
 
 function renderizarTudo() {
@@ -109,7 +113,7 @@ function renderizarTudo() {
 /* ===================== NAVEGAÇÃO ===================== */
 const SUBTITULOS = { painel: 'Painel', entradas: 'Entradas', saidas: 'Saídas' };
 function navegar(tela) {
-  if (tela === 'exportar') { exportarParaExcel(); return; }
+  if (tela === 'exportar') { fluxoExportar(); return; }
   estado.definir({ telaAtual: tela });
   document.querySelectorAll('.tela').forEach(s => s.classList.toggle('ativa', s.id === `tela-${tela}`));
   document.querySelectorAll('.nav-item').forEach(n => {
@@ -119,6 +123,49 @@ function navegar(tela) {
   });
   $('subtitulo-tela').textContent = SUBTITULOS[tela] || '';
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* ===================== DIÁLOGO DE CONFIRMAÇÃO ===================== */
+function abrirDialogo(id) { const d = $(id); if (typeof d.showModal === 'function') d.showModal(); else d.setAttribute('open', ''); }
+function fecharDialogo(id) { const d = $(id); if (typeof d.close === 'function') d.close(); else d.removeAttribute('open'); }
+
+/** Confirmação estilizada. Resolve true (confirmou) ou false (cancelou). */
+function confirmar({ titulo, mensagem, rotuloOk = 'Confirmar', variante = 'normal', icone = '?' }) {
+  return new Promise(resolve => {
+    $('confirmar-titulo').textContent = titulo;
+    $('confirmar-mensagem').textContent = mensagem;
+    const elIcone = $('confirmar-icone');
+    elIcone.textContent = icone;
+    elIcone.className = `confirmar-icone ${variante === 'perigo' ? 'perigo' : 'sair'}`;
+    const ok = $('confirmar-ok');
+    ok.textContent = rotuloOk;
+    ok.className = `btn btn-bloco ${variante === 'perigo' ? 'btn-perigo' : 'btn-primario'}`;
+    const dlg = $('dialogo-confirmar');
+    const cancelar = $('confirmar-cancelar');
+
+    const finalizar = (resultado) => {
+      ok.removeEventListener('click', aoOk);
+      cancelar.removeEventListener('click', aoCancelar);
+      dlg.removeEventListener('cancel', aoCancelar);
+      fecharDialogo('dialogo-confirmar');
+      resolve(resultado);
+    };
+    const aoOk = () => finalizar(true);
+    const aoCancelar = (ev) => { if (ev) ev.preventDefault(); finalizar(false); };
+
+    ok.addEventListener('click', aoOk);
+    cancelar.addEventListener('click', aoCancelar);
+    dlg.addEventListener('cancel', aoCancelar);   // tecla ESC
+    abrirDialogo('dialogo-confirmar');
+  });
+}
+
+async function confirmarSaida() {
+  const sair = await confirmar({
+    titulo: 'Sair da conta', mensagem: 'Deseja realmente encerrar a sessão?',
+    rotuloOk: 'Sair', icone: '⎋'
+  });
+  if (sair) encerrarSessao();
 }
 
 /* ===================== FILTRO DE MÊS (PAINEL) ===================== */
@@ -229,92 +276,217 @@ function atualizarPreviaCalculo() {
   $('calc-final').textContent = formatarMoeda(r.obtido);
 }
 
-/* ===================== MODAIS (<dialog>) ===================== */
-function abrirDialogo(id) { const d = $(id); if (typeof d.showModal === 'function') d.showModal(); else d.setAttribute('open', ''); }
-function fecharDialogo(id) { const d = $(id); if (typeof d.close === 'function') d.close(); else d.removeAttribute('open'); }
-
+/* ===================== ABRIR MODAIS (novo / editar) ===================== */
 function abrirNovaEntrada() {
+  idEntradaEmEdicao = null;
+  $('titulo-dialogo-entrada').textContent = 'Nova entrada';
+  $('btn-salvar-entrada').textContent = 'Salvar entrada';
   $('form-entrada').reset();
   $('e-data').value = dataDeHojeISO();
   selecionarForma('Pix');
   abrirDialogo('dialogo-entrada');
 }
+
 function abrirNovaSaida() {
+  idSaidaEmEdicao = null;
+  $('titulo-dialogo-saida').textContent = 'Nova saída';
+  $('btn-salvar-saida').textContent = 'Salvar saída';
   $('form-saida').reset();
   $('s-data').value = dataDeHojeISO();
   abrirDialogo('dialogo-saida');
 }
 
-/* ===================== SALVAR (com validação e auditoria) ===================== */
+function abrirEditarEntrada(id) {
+  const e = estado.obter('entradas').find(item => String(item.id) === String(id));
+  if (!e) { exibirToast('Registro não encontrado.', 'erro'); return; }
+  idEntradaEmEdicao = id;
+  $('titulo-dialogo-entrada').textContent = 'Editar entrada';
+  $('btn-salvar-entrada').textContent = 'Salvar alterações';
+  $('e-data').value = obterAnoMesDia(e.data);
+  $('e-nome').value = e.nome || '';
+  $('e-cpf').value = e.cpf || '';
+  $('e-servico').value = e.servico || SERVICOS[0];
+  $('e-tipo').value = e.tipo || '';
+  selecionarForma(e.forma || 'Pix');
+  $('e-bruto').value = e.bruto || '';
+  $('e-desconto').value = e.desconto || '';
+  if (e.forma === 'Crédito') {
+    const n = parseInt(e.parcela, 10);
+    $('e-parcela').value = String((Number.isFinite(n) ? n : 1) - 1);
+  }
+  atualizarPreviaCalculo();
+  abrirDialogo('dialogo-entrada');
+}
+
+function abrirEditarSaida(id) {
+  const s = estado.obter('saidas').find(item => String(item.id) === String(id));
+  if (!s) { exibirToast('Registro não encontrado.', 'erro'); return; }
+  idSaidaEmEdicao = id;
+  $('titulo-dialogo-saida').textContent = 'Editar saída';
+  $('btn-salvar-saida').textContent = 'Salvar alterações';
+  $('s-data').value = obterAnoMesDia(s.data);
+  $('s-categoria').value = s.categoria || CATEGORIAS_SAIDA[0];
+  $('s-subcategoria').value = s.subcategoria || '';
+  $('s-tipo').value = s.tipo || TIPOS_SAIDA[0];
+  $('s-valor').value = s.valor || '';
+  $('s-obs').value = s.observacoes || '';
+  abrirDialogo('dialogo-saida');
+}
+
+/* ===================== MONTAGEM + VALIDAÇÃO ===================== */
+function montarRegistroEntrada() {
+  const forma = validarOpcao(formaSelecionada, FORMAS_PAGAMENTO, 'pagamento');
+  const indiceParcela = forma === 'Crédito' ? (Number($('e-parcela').value) || 0) : -1;
+  const bruto = validarValorMonetario($('e-bruto').value, { permitirZero: false });
+  const desconto = validarValorMonetario($('e-desconto').value || 0);
+  if (desconto > bruto) throw new ErroDeValidacao('Desconto maior que o valor bruto.');
+
+  const { obtido } = calcularLucroObtido({ bruto, desconto, forma, indiceParcela });
+  const nome = sanitizarEntradaDeDados($('e-nome').value, 80);
+  if (!nome) throw new ErroDeValidacao('Informe o nome do cliente.');
+
+  return {
+    data: validarDataISO($('e-data').value),
+    nome,
+    cpf: sanitizarEntradaDeDados($('e-cpf').value, 14),
+    servico: validarOpcao($('e-servico').value, SERVICOS, 'serviço'),
+    tipo: $('e-tipo').value ? validarOpcao($('e-tipo').value, TIPOS_ENTRADA, 'tipo') : '',
+    forma,
+    bruto, desconto,
+    parcela: forma === 'Crédito' ? descreverParcela(indiceParcela) : '',
+    obtido,
+    usuario: estado.obter('usuario'),
+    timestamp: carimboDeTempoAgora()
+  };
+}
+
+function montarRegistroSaida() {
+  return {
+    data: validarDataISO($('s-data').value),
+    categoria: validarOpcao($('s-categoria').value, CATEGORIAS_SAIDA, 'categoria'),
+    subcategoria: sanitizarEntradaDeDados($('s-subcategoria').value, 60),
+    tipo: validarOpcao($('s-tipo').value, TIPOS_SAIDA, 'tipo'),
+    valor: validarValorMonetario($('s-valor').value, { permitirZero: false }),
+    observacoes: sanitizarEntradaDeDados($('s-obs').value, 120),
+    usuario: estado.obter('usuario'),
+    timestamp: carimboDeTempoAgora()
+  };
+}
+
+/* ===================== SALVAR (anti-duplo-clique) ===================== */
 async function aoSalvarEntrada(evento) {
   evento.preventDefault();
+  let registro;
   try {
-    const forma = validarOpcao(formaSelecionada, FORMAS_PAGAMENTO, 'pagamento');
-    const indiceParcela = forma === 'Crédito' ? (Number($('e-parcela').value) || 0) : -1;
-    const bruto = validarValorMonetario($('e-bruto').value, { permitirZero: false });
-    const desconto = validarValorMonetario($('e-desconto').value || 0);
-    if (desconto > bruto) throw new ErroDeValidacao('Desconto maior que o valor bruto.');
+    registro = montarRegistroEntrada();
+  } catch (erro) {
+    exibirToast(erro instanceof ErroDeValidacao ? erro.message : 'Erro ao salvar.', 'erro');
+    return;
+  }
 
-    const { obtido } = calcularLucroObtido({ bruto, desconto, forma, indiceParcela });
-    const registro = {
-      data: validarDataISO($('e-data').value),
-      nome: sanitizarEntradaDeDados($('e-nome').value, 80),
-      cpf: sanitizarEntradaDeDados($('e-cpf').value, 14),
-      servico: validarOpcao($('e-servico').value, SERVICOS, 'serviço'),
-      tipo: $('e-tipo').value ? validarOpcao($('e-tipo').value, TIPOS_ENTRADA, 'tipo') : '',
-      forma,
-      bruto, desconto,
-      parcela: forma === 'Crédito' ? descreverParcela(indiceParcela) : '',
-      obtido,
-      usuario: estado.obter('usuario'),       // auditoria: quem
-      timestamp: carimboDeTempoAgora()          // auditoria: quando
-    };
-    if (!registro.nome) throw new ErroDeValidacao('Informe o nome do cliente.');
-
-    await persistir(api.adicionarEntrada(registro), 'Entrada registrada');
+  const botao = $('btn-salvar-entrada');
+  const textoOriginal = botao.textContent;
+  botao.disabled = true;
+  botao.textContent = 'Salvando…';
+  try {
+    if (idEntradaEmEdicao) {
+      registro.id = idEntradaEmEdicao;
+      await persistir(api.editarEntrada(registro), 'Entrada atualizada');
+    } else {
+      await persistir(api.adicionarEntrada(registro), 'Entrada registrada');
+    }
     fecharDialogo('dialogo-entrada');
     await recarregarLocal();
   } catch (erro) {
     exibirToast(erro instanceof ErroDeValidacao ? erro.message : 'Erro ao salvar.', 'erro');
+  } finally {
+    botao.disabled = false;
+    botao.textContent = textoOriginal;
   }
 }
 
 async function aoSalvarSaida(evento) {
   evento.preventDefault();
+  let registro;
   try {
-    const registro = {
-      data: validarDataISO($('s-data').value),
-      categoria: validarOpcao($('s-categoria').value, CATEGORIAS_SAIDA, 'categoria'),
-      subcategoria: sanitizarEntradaDeDados($('s-subcategoria').value, 60),
-      tipo: validarOpcao($('s-tipo').value, TIPOS_SAIDA, 'tipo'),
-      valor: validarValorMonetario($('s-valor').value, { permitirZero: false }),
-      observacoes: sanitizarEntradaDeDados($('s-obs').value, 120),
-      usuario: estado.obter('usuario'),
-      timestamp: carimboDeTempoAgora()
-    };
-    await persistir(api.adicionarSaida(registro), 'Saída registrada');
+    registro = montarRegistroSaida();
+  } catch (erro) {
+    exibirToast(erro instanceof ErroDeValidacao ? erro.message : 'Erro ao salvar.', 'erro');
+    return;
+  }
+
+  const botao = $('btn-salvar-saida');
+  const textoOriginal = botao.textContent;
+  botao.disabled = true;
+  botao.textContent = 'Salvando…';
+  try {
+    if (idSaidaEmEdicao) {
+      registro.id = idSaidaEmEdicao;
+      await persistir(api.editarSaida(registro), 'Saída atualizada');
+    } else {
+      await persistir(api.adicionarSaida(registro), 'Saída registrada');
+    }
     fecharDialogo('dialogo-saida');
     await recarregarLocal();
   } catch (erro) {
     exibirToast(erro instanceof ErroDeValidacao ? erro.message : 'Erro ao salvar.', 'erro');
+  } finally {
+    botao.disabled = false;
+    botao.textContent = textoOriginal;
   }
 }
 
 async function persistir(promessa, mensagemOk) {
   const resposta = await promessa;
-  if (resposta && resposta.ok === false) throw new ErroDeValidacao(resposta.erro || 'O servidor recusou o registro.');
+  if (resposta && resposta.ok === false) throw new ErroDeValidacao(resposta.erro || 'O servidor recusou a operação.');
   exibirToast(mensagemOk + ' ✓', 'ok');
 }
 
-/** Recarrega a partir do serviço (em demo, lê a memória já atualizada). */
-async function recarregarLocal() {
-  const { entradas, saidas } = await api.carregarLancamentos();
-  estado.definir({ entradas, saidas });
-  renderizarTudo();
+/* ===================== EXCLUIR ===================== */
+async function confirmarExcluir(registro, id) {
+  const ok = await confirmar({
+    titulo: 'Excluir registro',
+    mensagem: 'Tem certeza que deseja excluir este registro? Esta ação é irreversível.',
+    rotuloOk: 'Excluir', variante: 'perigo', icone: '🗑'
+  });
+  if (!ok) return;
+  try {
+    await persistir(
+      registro === 'entrada' ? api.excluirEntrada(id) : api.excluirSaida(id),
+      'Registro excluído'
+    );
+    await recarregarLocal();
+  } catch (erro) {
+    exibirToast(erro instanceof ErroDeValidacao ? erro.message : 'Erro ao excluir.', 'erro');
+  }
 }
 
-/* ===================== EXPORTAÇÃO (SheetJS) ===================== */
-function exportarParaExcel() {
+/** Cliques nos botões editar/excluir dos cards (delegação de eventos). */
+function aoClicarNaLista(evento) {
+  const botao = evento.target.closest('[data-acao]');
+  if (!botao) return;
+  const { acao, registro, id } = botao.dataset;
+  if (acao === 'editar') {
+    registro === 'entrada' ? abrirEditarEntrada(id) : abrirEditarSaida(id);
+  } else if (acao === 'excluir') {
+    confirmarExcluir(registro, id);
+  }
+}
+
+/* ===================== EXPORTAÇÃO (modal + Web Share) ===================== */
+async function fluxoExportar() {
+  const mes = estado.obter('mesSelecionado');
+  const ok = await confirmar({
+    titulo: 'Exportar planilha',
+    mensagem: mes
+      ? `Gerar a planilha Excel com os lançamentos de ${rotularMes(mes)}?`
+      : 'Gerar a planilha Excel com todos os lançamentos?',
+    rotuloOk: 'Exportar', icone: '↧'
+  });
+  if (ok) await exportarParaExcel();
+}
+
+async function exportarParaExcel() {
   if (typeof XLSX === 'undefined') { exibirToast('Exportação indisponível.', 'erro'); return; }
   const mes = estado.obter('mesSelecionado');
   const filtra = itens => mes ? itens.filter(i => obterAnoMes(i.data) === mes) : itens;
@@ -337,14 +509,44 @@ function exportarParaExcel() {
   wsS['!cols'] = [{ wch: 11 }, { wch: 12 }, { wch: 22 }, { wch: 11 }, { wch: 12 }, { wch: 26 }, { wch: 13 }, { wch: 18 }];
   XLSX.utils.book_append_sheet(wb, wsE, 'Entrada');
   XLSX.utils.book_append_sheet(wb, wsS, 'Saída');
-  XLSX.writeFile(wb, `Controle_Estetica${mes ? '_' + mes : '_completo'}.xlsx`);
+
+  const nomeArquivo = `Controle_Estetica${mes ? '_' + mes : '_completo'}.xlsx`;
+  const buffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+
+  // Mobile: tenta o compartilhamento nativo (WhatsApp, e-mail, etc.).
+  const arquivo = new File([blob], nomeArquivo, { type: blob.type });
+  if (navigator.canShare && navigator.canShare({ files: [arquivo] })) {
+    try {
+      await navigator.share({ files: [arquivo], title: 'Controle Estética Integrativa', text: 'Planilha de controle financeiro.' });
+      exibirToast('Planilha compartilhada ✓', 'ok');
+      return;
+    } catch (erro) {
+      if (erro && erro.name === 'AbortError') return;   // usuário cancelou a partilha
+      // qualquer outra falha: cai para o download tradicional
+    }
+  }
+
+  // Desktop / navegadores sem Web Share: download direto.
+  baixarBlob(blob, nomeArquivo);
   exibirToast('Planilha exportada ✓', 'ok');
+}
+
+function baixarBlob(blob, nome) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = nome;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
 }
 
 /* ===================== EVENTOS ===================== */
 function registrarEventos() {
   $('login-form').addEventListener('submit', aoEnviarLogin);
-  $('botao-sair').addEventListener('click', encerrarSessao);
+  $('botao-sair').addEventListener('click', confirmarSaida);
 
   document.querySelectorAll('.nav-item').forEach(n => n.addEventListener('click', () => navegar(n.dataset.tela)));
 
@@ -360,6 +562,9 @@ function registrarEventos() {
 
   $('form-entrada').addEventListener('submit', aoSalvarEntrada);
   $('form-saida').addEventListener('submit', aoSalvarSaida);
+
+  $('lista-entradas').addEventListener('click', aoClicarNaLista);
+  $('lista-saidas').addEventListener('click', aoClicarNaLista);
 
   $('mes-anterior').addEventListener('click', () => passoMes(-1));
   $('mes-proximo').addEventListener('click', () => passoMes(1));

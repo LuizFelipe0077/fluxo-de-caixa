@@ -226,7 +226,7 @@ export function renderizarEntradas(lista) {
     chips.push(chip(`${e.forma || '—'}${e.parcela ? ' · ' + e.parcela : ''}`));
     if (e.desconto > 0) chips.push(chip(`desc. ${formatarMoeda(e.desconto)}`));
     box.appendChild(cartaoMovimentacao({
-      tipo: 'in', titulo: e.nome || '—', valor: e.obtido, data: e.data, usuario: e.usuario, chips
+      tipo: 'in', registro: 'entrada', id: e.id, titulo: e.nome || '—', valor: e.obtido, data: e.data, usuario: e.usuario, chips
     }));
   }
 }
@@ -242,12 +242,12 @@ export function renderizarSaidas(lista) {
     const chips = [chip(s.categoria, true), chip(s.tipo)];
     if (s.observacoes) chips.push(chip(s.observacoes));
     box.appendChild(cartaoMovimentacao({
-      tipo: 'out', titulo: s.subcategoria || s.categoria, valor: s.valor, data: s.data, usuario: s.usuario, chips
+      tipo: 'out', registro: 'saida', id: s.id, titulo: s.subcategoria || s.categoria, valor: s.valor, data: s.data, usuario: s.usuario, chips
     }));
   }
 }
 
-function cartaoMovimentacao({ tipo, titulo, valor, data, usuario, chips }) {
+function cartaoMovimentacao({ tipo, registro, id, titulo, valor, data, usuario, chips }) {
   const card = criarElemento('article', { classe: 'cartao-mov' });
   const acento = criarElemento('div', { classe: `mov-acento ${tipo}` });
 
@@ -259,15 +259,34 @@ function cartaoMovimentacao({ tipo, titulo, valor, data, usuario, chips }) {
   );
   const meta = criarElemento('div', { classe: 'mov-meta', filhos: chips });
 
+  const acoes = criarElemento('div', { classe: 'mov-acoes' });
+  acoes.append(
+    botaoAcao('editar', registro, id, iconeLapis(), 'Editar registro'),
+    botaoAcao('excluir', registro, id, iconeLixeira(), 'Excluir registro')
+  );
+
   const rodape = criarElemento('div', { classe: 'mov-rodape' });
+  const direita = criarElemento('div', { classe: 'mov-rodape-dir' });
+  direita.append(
+    criarElemento('span', { classe: 'mov-auditoria', filhos: [iconeUsuario(), criarElemento('span', { texto: usuario || '—' })] }),
+    acoes
+  );
   rodape.append(
     criarElemento('time', { classe: 'mov-data', texto: formatarDataBR(data), atributos: { datetime: String(data).slice(0, 10) } }),
-    criarElemento('span', { classe: 'mov-auditoria', filhos: [iconeUsuario(), criarElemento('span', { texto: usuario || '—' })] })
+    direita
   );
 
   corpo.append(topo, meta, rodape);
   card.append(acento, corpo);
   return card;
+}
+
+function botaoAcao(acao, registro, id, icone, rotulo) {
+  return criarElemento('button', {
+    classe: `mov-acao ${acao}`,
+    atributos: { type: 'button', 'data-acao': acao, 'data-registro': registro, 'data-id': id, 'aria-label': rotulo, title: rotulo },
+    filhos: [icone]
+  });
 }
 
 function chip(texto, destaque = false) {
@@ -339,6 +358,12 @@ function iconeUsuario() {
 }
 function iconeSacola() {
   return svg([{ d: 'M3 9h18M3 9l2-5h14l2 5M3 9v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9' }], { sw: 1.5, w: 40, h: 40 });
+}
+function iconeLapis() {
+  return svg([{ d: 'M12 20h9' }, { d: 'M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z' }], { sw: 1.8, w: 16, h: 16 });
+}
+function iconeLixeira() {
+  return svg([{ d: 'M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6' }, { d: 'M10 11v6M14 11v6' }], { sw: 1.8, w: 16, h: 16 });
 }
 
 export { encodeHTML };
