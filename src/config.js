@@ -9,7 +9,7 @@
  * com os dados históricos da planilha carregados em memória.
  */
 export const CONFIG = Object.freeze({
-  USAR_API: true,
+  USAR_API: false,
   URL_WEB_APP: 'https://script.google.com/macros/s/AKfycbx-OQVbU53N1zh8BwShnMC2BJ5jPkGdRobwdzjFjnReusMrMiqbl24GoYIJSorgNA-Q/exec',
   ATRASO_SIMULADO_MS: 550   // simula latência de rede no modo demo (mostra skeletons)
 });
