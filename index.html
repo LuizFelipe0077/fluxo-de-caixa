@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#C17B66">
+
+<!-- Content Security Policy: restringe origens de script/estilo/fonte/conexão -->
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'self';
+  base-uri 'self';
+  object-src 'none';
+  form-action 'self';
+  img-src 'self' data:;
+  script-src 'self' https://cdn.jsdelivr.net;
+  style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+  font-src https://fonts.gstatic.com;
+  connect-src 'self' https://script.google.com https://script.googleusercontent.com;
+">
+
+<title>Estética Integrativa · Controle Financeiro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ===================== LOGIN ===================== -->
+<section id="tela-login" class="tela-login" aria-label="Acesso ao sistema">
+  <div class="login-ambiente" aria-hidden="true"></div>
+  <main class="login-cartao">
+    <header class="marca">
+      <span class="marca-icone" aria-hidden="true">
+        <svg viewBox="0 0 40 40" width="40" height="40"><path d="M20 4c4 6 9 8 9 15a9 9 0 0 1-18 0c0-7 5-9 9-15Z" fill="currentColor" opacity="0.9"/><path d="M20 21v15M20 28c-3-2-6-2-8-5M20 26c3-2 6-1 8-4" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round"/></svg>
+      </span>
+      <div>
+        <h1 class="marca-nome">Estética Integrativa</h1>
+        <p class="marca-sub">Controle Financeiro</p>
+      </div>
+    </header>
+
+    <form id="login-form" class="login-form" autocomplete="off" novalidate>
+      <div class="campo">
+        <label class="campo-rotulo" for="login-usuario">Usuário</label>
+        <input type="text" id="login-usuario" placeholder="nicole ou felipe" autocapitalize="none" autocomplete="username" required>
+      </div>
+      <div class="campo">
+        <label class="campo-rotulo" for="login-senha">Senha</label>
+        <input type="password" id="login-senha" placeholder="••••••" autocomplete="current-password" required>
+      </div>
+      <p id="login-erro" class="login-erro" role="alert" aria-live="assertive"></p>
+      <button type="submit" id="botao-entrar" class="btn btn-primario btn-bloco">Entrar</button>
+    </form>
+    <p class="login-rodape">Acesso compartilhado · Nicole &amp; Felipe</p>
+  </main>
+</section>
+
+<!-- ===================== APLICAÇÃO ===================== -->
+<div id="aplicacao" class="aplicacao" hidden>
+
+  <header class="topo">
+    <div class="topo-marca">
+      <span class="topo-icone" aria-hidden="true"><svg viewBox="0 0 40 40" width="22" height="22"><path d="M20 4c4 6 9 8 9 15a9 9 0 0 1-18 0c0-7 5-9 9-15Z" fill="currentColor"/></svg></span>
+      <div>
+        <strong>Estética Integrativa</strong>
+        <span id="subtitulo-tela" class="topo-sub">Painel</span>
+      </div>
+    </div>
+    <div class="topo-direita">
+      <span id="badge-sync" class="badge-sync demo" title="Modo de demonstração">● Demo</span>
+      <button id="botao-sair" class="btn-icone" title="Sair" aria-label="Encerrar sessão">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main class="conteudo">
+
+    <!-- ===== PAINEL ===== -->
+    <section id="tela-painel" class="tela ativa" aria-label="Painel financeiro">
+      <div class="barra-mes" role="group" aria-label="Seleção de mês">
+        <button class="mes-nav" id="mes-anterior" aria-label="Mês anterior">‹</button>
+        <button class="mes-pilula" id="rotulo-mes">Todos os meses</button>
+        <button class="mes-nav" id="mes-proximo" aria-label="Próximo mês">›</button>
+      </div>
+
+      <article id="hero-balance" class="hero" aria-label="Resumo do período">
+        <span class="hero-rotulo">Lucro líquido<span id="hero-periodo"></span></span>
+        <strong class="hero-valor" id="kpi-liquido">R$ 0,00</strong>
+        <div class="hero-divisao">
+          <span><i class="ponto ponto-in" aria-hidden="true"></i>Entradas <b id="kpi-entradas">R$ 0,00</b></span>
+          <span><i class="ponto ponto-out" aria-hidden="true"></i>Saídas <b id="kpi-saidas">R$ 0,00</b></span>
+        </div>
+      </article>
+
+      <div class="mini-cartoes">
+        <article class="mini-cartao"><span class="mini-rotulo">Movimentações</span><strong id="kpi-qtd">0</strong></article>
+        <article class="mini-cartao"><span class="mini-rotulo">Ticket médio</span><strong id="kpi-ticket">R$ 0,00</strong></article>
+        <article class="mini-cartao"><span class="mini-rotulo">Taxas pagas</span><strong id="kpi-taxas">R$ 0,00</strong></article>
+      </div>
+
+      <section class="painel">
+        <header class="painel-cabecalho"><h2>Entradas × Saídas</h2><span class="painel-dica">por mês</span></header>
+        <div class="grafico-area"><canvas id="grafico-fluxo" role="img" aria-label="Gráfico de entradas e saídas por mês"></canvas></div>
+      </section>
+
+      <div class="grafico-linha">
+        <section class="painel">
+          <header class="painel-cabecalho"><h2>Entradas por serviço</h2></header>
+          <div class="grafico-area grafico-peq"><canvas id="grafico-servicos" role="img" aria-label="Entradas por serviço"></canvas></div>
+        </section>
+        <section class="painel">
+          <header class="painel-cabecalho"><h2>Saídas por categoria</h2></header>
+          <div class="grafico-area grafico-peq"><canvas id="grafico-saidas" role="img" aria-label="Saídas por categoria"></canvas></div>
+        </section>
+      </div>
+
+      <section class="painel">
+        <header class="painel-cabecalho"><h2>Últimas movimentações</h2></header>
+        <div id="lista-recentes" class="lista-recentes"></div>
+      </section>
+    </section>
+
+    <!-- ===== ENTRADAS ===== -->
+    <section id="tela-entradas" class="tela" aria-label="Entradas">
+      <div class="barra-lista">
+        <input type="search" id="entradas-busca" class="campo-busca" placeholder="Buscar cliente, serviço…" aria-label="Buscar entradas">
+        <button class="btn btn-fantasma btn-so-icone" id="entradas-botao-filtro" aria-label="Mostrar filtros">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
+        </button>
+      </div>
+      <div id="entradas-filtros" class="filtros" hidden>
+        <div class="filtros-grade">
+          <div class="campo"><label class="campo-rotulo" for="entradas-de">De</label><input type="date" id="entradas-de"></div>
+          <div class="campo"><label class="campo-rotulo" for="entradas-ate">Até</label><input type="date" id="entradas-ate"></div>
+          <div class="campo"><label class="campo-rotulo" for="entradas-fservico">Serviço</label><select id="entradas-fservico"></select></div>
+          <div class="campo"><label class="campo-rotulo" for="entradas-fpagamento">Pagamento</label><select id="entradas-fpagamento"></select></div>
+        </div>
+        <button class="btn btn-texto" id="entradas-limpar">Limpar filtros</button>
+      </div>
+      <div class="resumo-lista" id="resumo-entradas"></div>
+      <div id="lista-entradas" class="lista-cartoes"></div>
+    </section>
+
+    <!-- ===== SAÍDAS ===== -->
+    <section id="tela-saidas" class="tela" aria-label="Saídas">
+      <div class="barra-lista">
+        <input type="search" id="saidas-busca" class="campo-busca" placeholder="Buscar categoria, observação…" aria-label="Buscar saídas">
+        <button class="btn btn-fantasma btn-so-icone" id="saidas-botao-filtro" aria-label="Mostrar filtros">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
+        </button>
+      </div>
+      <div id="saidas-filtros" class="filtros" hidden>
+        <div class="filtros-grade">
+          <div class="campo"><label class="campo-rotulo" for="saidas-de">De</label><input type="date" id="saidas-de"></div>
+          <div class="campo"><label class="campo-rotulo" for="saidas-ate">Até</label><input type="date" id="saidas-ate"></div>
+          <div class="campo"><label class="campo-rotulo" for="saidas-fcategoria">Categoria</label><select id="saidas-fcategoria"></select></div>
+          <div class="campo"><label class="campo-rotulo" for="saidas-ftipo">Tipo</label><select id="saidas-ftipo"></select></div>
+        </div>
+        <button class="btn btn-texto" id="saidas-limpar">Limpar filtros</button>
+      </div>
+      <div class="resumo-lista" id="resumo-saidas"></div>
+      <div id="lista-saidas" class="lista-cartoes"></div>
+    </section>
+  </main>
+
+  <button id="fab" class="fab" aria-label="Registrar movimentação">
+    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+  </button>
+
+  <nav class="nav-inferior" aria-label="Navegação principal">
+    <button class="nav-item ativo" data-tela="painel" aria-current="page">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+      <span>Painel</span>
+    </button>
+    <button class="nav-item" data-tela="entradas">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>
+      <span>Entradas</span>
+    </button>
+    <button class="nav-item nav-exportar" data-tela="exportar" aria-label="Exportar para Excel">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg>
+      <span>Exportar</span>
+    </button>
+    <button class="nav-item" data-tela="saidas">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
+      <span>Saídas</span>
+    </button>
+  </nav>
+</div>
+
+<!-- ===================== DIÁLOGO: ESCOLHA ===================== -->
+<dialog id="dialogo-escolha" class="dialogo dialogo-escolha">
+  <form method="dialog" class="dialogo-conteudo">
+    <span class="dialogo-puxador" aria-hidden="true"></span>
+    <h2 class="escolha-titulo">O que deseja registrar?</h2>
+    <div class="escolha-grade">
+      <button type="button" class="escolha-btn escolha-in" id="escolha-entrada">
+        <span class="escolha-icone" aria-hidden="true">↓</span><span>Entrada</span><small>Receita / venda</small>
+      </button>
+      <button type="button" class="escolha-btn escolha-out" id="escolha-saida">
+        <span class="escolha-icone" aria-hidden="true">↑</span><span>Saída</span><small>Despesa / retirada</small>
+      </button>
+    </div>
+    <button type="button" class="btn btn-texto centro" data-fechar="dialogo-escolha">Cancelar</button>
+  </form>
+</dialog>
+
+<!-- ===================== DIÁLOGO: ENTRADA ===================== -->
+<dialog id="dialogo-entrada" class="dialogo">
+  <div class="dialogo-conteudo">
+    <span class="dialogo-puxador" aria-hidden="true"></span>
+    <header class="dialogo-cabecalho">
+      <h2>Nova entrada</h2>
+      <button class="btn-icone" data-fechar="dialogo-entrada" aria-label="Fechar">✕</button>
+    </header>
+    <form id="form-entrada" class="dialogo-form" autocomplete="off" novalidate>
+      <div class="form-grade">
+        <div class="campo"><label class="campo-rotulo" for="e-data">Data</label><input type="date" id="e-data" required></div>
+        <div class="campo"><label class="campo-rotulo" for="e-nome">Cliente</label><input type="text" id="e-nome" placeholder="Nome" required></div>
+        <div class="campo"><label class="campo-rotulo" for="e-cpf">CPF <i>(opcional)</i></label><input type="text" id="e-cpf" inputmode="numeric" placeholder="000.000.000-00"></div>
+        <div class="campo"><label class="campo-rotulo" for="e-servico">Serviço</label><select id="e-servico" required></select></div>
+        <div class="campo"><label class="campo-rotulo" for="e-tipo">Tipo</label><select id="e-tipo"></select></div>
+      </div>
+
+      <span class="campo-rotulo bloco" id="rotulo-forma">Forma de pagamento</span>
+      <div class="seg" id="e-forma" role="group" aria-labelledby="rotulo-forma">
+        <button type="button" data-pagamento="Pix" class="seg-btn ativo" aria-pressed="true">Pix</button>
+        <button type="button" data-pagamento="Dinheiro" class="seg-btn" aria-pressed="false">Dinheiro</button>
+        <button type="button" data-pagamento="Débito" class="seg-btn" aria-pressed="false">Débito</button>
+        <button type="button" data-pagamento="Crédito" class="seg-btn" aria-pressed="false">Crédito</button>
+      </div>
+
+      <div class="form-grade">
+        <div class="campo"><label class="campo-rotulo" for="e-bruto">Valor bruto (R$)</label><input type="number" step="0.01" min="0" id="e-bruto" inputmode="decimal" placeholder="0,00" required></div>
+        <div class="campo"><label class="campo-rotulo" for="e-desconto">Desconto (R$)</label><input type="number" step="0.01" min="0" id="e-desconto" inputmode="decimal" placeholder="0,00"></div>
+        <div class="campo" id="e-parcela-grupo" hidden><label class="campo-rotulo" for="e-parcela">Parcelas</label><select id="e-parcela"></select></div>
+      </div>
+
+      <div class="calc-saida" aria-live="polite">
+        <div><span>Base</span><strong id="calc-base">R$ 0,00</strong></div>
+        <div class="calc-taxa-linha"><span>Taxa</span><strong id="calc-taxa">– R$ 0,00</strong></div>
+        <div class="calc-final-linha"><span>Lucro obtido</span><strong id="calc-final">R$ 0,00</strong></div>
+      </div>
+
+      <button type="submit" class="btn btn-primario btn-bloco">Salvar entrada</button>
+    </form>
+  </div>
+</dialog>
+
+<!-- ===================== DIÁLOGO: SAÍDA ===================== -->
+<dialog id="dialogo-saida" class="dialogo">
+  <div class="dialogo-conteudo">
+    <span class="dialogo-puxador" aria-hidden="true"></span>
+    <header class="dialogo-cabecalho">
+      <h2>Nova saída</h2>
+      <button class="btn-icone" data-fechar="dialogo-saida" aria-label="Fechar">✕</button>
+    </header>
+    <form id="form-saida" class="dialogo-form" autocomplete="off" novalidate>
+      <div class="form-grade">
+        <div class="campo"><label class="campo-rotulo" for="s-data">Data</label><input type="date" id="s-data" required></div>
+        <div class="campo"><label class="campo-rotulo" for="s-categoria">Categoria</label><select id="s-categoria" required></select></div>
+        <div class="campo"><label class="campo-rotulo" for="s-subcategoria">Subcategoria</label><input type="text" id="s-subcategoria" placeholder="Ex.: Aluguel, Uber…"></div>
+        <div class="campo"><label class="campo-rotulo" for="s-tipo">Tipo</label><select id="s-tipo"></select></div>
+        <div class="campo"><label class="campo-rotulo" for="s-valor">Valor (R$)</label><input type="number" step="0.01" min="0" id="s-valor" inputmode="decimal" placeholder="0,00" required></div>
+      </div>
+      <div class="campo"><label class="campo-rotulo" for="s-obs">Observações <i>(opcional)</i></label><input type="text" id="s-obs" placeholder="Detalhe da despesa"></div>
+      <button type="submit" class="btn btn-primario btn-bloco">Salvar saída</button>
+    </form>
+  </div>
+</dialog>
+
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+<!-- Bibliotecas externas (CSP: cdn.jsdelivr.net) -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<!-- Aplicação modular -->
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
