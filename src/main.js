@@ -388,6 +388,9 @@ async function aoSalvarEntrada(evento) {
   const textoOriginal = botao.textContent;
   botao.disabled = true;
   botao.textContent = 'Salvando…';
+
+  // Etapa 1 — SALVAR. Só este bloco decide sucesso/erro do salvamento.
+  let salvou = false;
   try {
     if (idEntradaEmEdicao) {
       registro.id = idEntradaEmEdicao;
@@ -395,13 +398,23 @@ async function aoSalvarEntrada(evento) {
     } else {
       await persistir(api.adicionarEntrada(registro), 'Entrada registrada');
     }
-    fecharDialogo('dialogo-entrada');
-    await recarregarLocal();
+    salvou = true;                         // o servidor confirmou: ponto de não-retorno
+    fecharDialogo('dialogo-entrada');      // fecha antes de liberar o botão (evita corrida)
   } catch (erro) {
     exibirToast(erro instanceof ErroDeValidacao ? erro.message : 'Erro ao salvar.', 'erro');
   } finally {
     botao.disabled = false;
     botao.textContent = textoOriginal;
+  }
+
+  // Etapa 2 — ATUALIZAR A TELA. Roda só se salvou e NUNCA reabre o erro de salvamento:
+  // se o recarregamento falhar, o dado já está gravado — apenas a lista não atualizou.
+  if (salvou) {
+    try {
+      await recarregarLocal();
+    } catch {
+      exibirToast('Salvo. Recarregue a página para atualizar a lista.', 'ok');
+    }
   }
 }
 

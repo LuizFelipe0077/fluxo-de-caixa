@@ -63,14 +63,27 @@ class ServicoApi {
       hashSenha: credenciais ? credenciais.hashSenha : '',
       payload
     };
-    const resposta = await fetch(CONFIG.URL_WEB_APP, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(corpo),
-      redirect: 'follow'
-    });
-    if (!resposta.ok) throw new Error('Falha na comunicação com o servidor.');
-    return resposta.json();
+    let resposta;
+    try {
+      resposta = await fetch(CONFIG.URL_WEB_APP, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(corpo),
+        redirect: 'follow'   // segue o 302 do Apps Script até o googleusercontent
+      });
+    } catch {
+      throw new Error('Sem conexão com o servidor.');
+    }
+
+    // Lê como texto e converte manualmente. Blinda contra Content-Type inesperado,
+    // BOM ou espaços que fariam resposta.json() lançar SyntaxError logo após o
+    // redirect do Apps Script — origem comum de "salvou, mas a tela acusou erro".
+    const texto = (await resposta.text()).trim();
+    try {
+      return JSON.parse(texto);
+    } catch {
+      throw new Error('Resposta inesperada do servidor.');
+    }
   }
 
   /** Valida credenciais no backend. Retorna { ok, nome } ou { ok:false }. */
