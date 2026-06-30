@@ -212,7 +212,9 @@ input[type="date"]{min-height:46px}
 .mov-acao{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;color:var(--tinta-3);border:1px solid transparent;transition:background .15s var(--suave),color .15s var(--suave),border-color .15s var(--suave)}
 .mov-acao:hover{background:var(--bg-2);color:var(--tinta);border-color:var(--linha)}
 .mov-acao.excluir:hover{background:var(--out-tint);color:var(--out);border-color:transparent}
-.mov-obs{margin-top:7px;font-size:12px;line-height:1.4;color:var(--tinta-3);font-style:italic;word-break:break-word}
+.chip-obs{max-width:min(60vw,220px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;font-style:italic;color:var(--tinta-3)}
+.chip-obs::before{content:"·";margin-right:5px;font-style:normal;font-weight:700;color:var(--tinta-3)}
+@media(min-width:760px){.chip-obs{max-width:340px}}
 
 .estado-vazio{text-align:center;padding:46px 20px;color:var(--tinta-3)}
 .estado-vazio svg{opacity:.4;margin-bottom:12px}
