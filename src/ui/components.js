@@ -90,13 +90,15 @@ export function renderizarPainel(estadoAtual) {
 }
 
 function renderizarRecentes(ents, sais) {
-  // Ordena pelo momento REAL do cadastro, embutido no id ('e_<epoch>' / 's_<epoch>'
-  // gerado com Date.now() ao salvar). Isso cruza entradas e saídas: o último
-  // adicionado vem primeiro, sem separar por tipo. Sem epoch (registros legados),
-  // cai para a data (AAAAMMDD).
+  // Ordena pelo momento REAL do cadastro, cruzando entradas e saídas (sem separar
+  // por tipo). Prioriza o epoch embutido no id ('e_<epoch>' / 's_<epoch>', gerado
+  // com Date.now() ao salvar). Para registros legados sem epoch, usa a data — mas
+  // convertida para milissegundos (Date.parse), na MESMA escala do epoch, para os
+  // dois nunca se separarem por diferença de grandeza.
   const ordemCadastro = item => {
     const m = String(item.id || '').match(/_(\d+)$/);
-    return m ? Number(m[1]) : (Number(String(item.data || '').replace(/-/g, '')) || 0);
+    if (m) return Number(m[1]);
+    return Date.parse(String(item.data || '') + 'T00:00:00') || 0;
   };
   const itens = [
     ...ents.map(e => ({ tipo: 'in', id: e.id, data: e.data, titulo: e.nome, sub: e.servico, valor: e.obtido })),
