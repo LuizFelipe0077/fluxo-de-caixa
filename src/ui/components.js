@@ -90,10 +90,18 @@ export function renderizarPainel(estadoAtual) {
 }
 
 function renderizarRecentes(ents, sais) {
-  const itens = ordenarRecentePrimeiro([
-    ...ents.map(e => ({ tipo: 'in', data: e.data, titulo: e.nome, sub: e.servico, valor: e.obtido })),
-    ...sais.map(s => ({ tipo: 'out', data: s.data, titulo: s.subcategoria || s.categoria, sub: s.categoria, valor: s.valor }))
-  ]).slice(0, 6);
+  // Ordena pelo momento REAL do cadastro, embutido no id ('e_<epoch>' / 's_<epoch>'
+  // gerado com Date.now() ao salvar). Isso cruza entradas e saídas: o último
+  // adicionado vem primeiro, sem separar por tipo. Sem epoch (registros legados),
+  // cai para a data (AAAAMMDD).
+  const ordemCadastro = item => {
+    const m = String(item.id || '').match(/_(\d+)$/);
+    return m ? Number(m[1]) : (Number(String(item.data || '').replace(/-/g, '')) || 0);
+  };
+  const itens = [
+    ...ents.map(e => ({ tipo: 'in', id: e.id, data: e.data, titulo: e.nome, sub: e.servico, valor: e.obtido })),
+    ...sais.map(s => ({ tipo: 'out', id: s.id, data: s.data, titulo: s.subcategoria || s.categoria, sub: s.categoria, valor: s.valor }))
+  ].sort((a, b) => ordemCadastro(b) - ordemCadastro(a)).slice(0, 6);
 
   const box = $('lista-recentes');
   vazio(box);
