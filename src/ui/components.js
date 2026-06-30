@@ -213,6 +213,17 @@ function tooltipPadrao() {
 }
 
 /* ===================== LISTAS ===================== */
+/** Ordena do mais recente para o mais antigo: data desc; no mesmo dia, o cadastrado por último vem primeiro. */
+function ordenarRecentePrimeiro(lista) {
+  return lista
+    .map((item, indice) => ({ item, indice }))
+    .sort((a, b) => {
+      const porData = String(b.item.data).localeCompare(String(a.item.data));
+      return porData !== 0 ? porData : b.indice - a.indice;
+    })
+    .map(entrada => entrada.item);
+}
+
 export function renderizarEntradas(lista) {
   const box = $('lista-entradas');
   vazio(box);
@@ -220,7 +231,7 @@ export function renderizarEntradas(lista) {
   resumoLista('resumo-entradas', `${lista.length} entrada(s)`, formatarMoeda(total));
   if (!lista.length) { box.appendChild(estadoVazio('Nenhuma entrada encontrada.', 'Ajuste a busca ou registre uma nova.')); return; }
 
-  for (const e of lista) {
+  for (const e of ordenarRecentePrimeiro(lista)) {
     const chips = [chip(e.servico, true)];
     if (e.tipo) chips.push(chip(e.tipo));
     chips.push(chip(`${e.forma || '—'}${e.parcela ? ' · ' + e.parcela : ''}`));
@@ -238,7 +249,7 @@ export function renderizarSaidas(lista) {
   resumoLista('resumo-saidas', `${lista.length} saída(s)`, formatarMoeda(total));
   if (!lista.length) { box.appendChild(estadoVazio('Nenhuma saída encontrada.', 'Ajuste a busca ou registre uma nova.')); return; }
 
-  for (const s of lista) {
+  for (const s of ordenarRecentePrimeiro(lista)) {
     const chips = [chip(s.categoria, true), chip(s.tipo)];
     if (s.observacoes) chips.push(chip(s.observacoes));
     box.appendChild(cartaoMovimentacao({

@@ -263,6 +263,10 @@ input[type="date"]{min-height:46px}
 .seg{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;background:var(--linha-2);padding:5px;border-radius:14px}
 .seg-btn{padding:10px 4px;border-radius:10px;font-weight:700;font-size:13.5px;color:var(--tinta-2);transition:all .2s var(--suave)}
 .seg-btn.ativo{background:var(--card);color:var(--terra-700);box-shadow:var(--sombra-1)}
+.seg-btn-largo{grid-column:1/-1}
+.campo-info{background:var(--linha-2)!important;color:var(--tinta-2)!important;font-weight:600;cursor:default;border-color:transparent!important}
+.campo-info:focus{box-shadow:none!important}
+.bloco-obs{margin-top:12px}
 
 .calc-saida{background:var(--card);border:1px solid var(--linha);border-radius:var(--raio);padding:14px 16px;display:flex;flex-direction:column;gap:9px}
 .calc-saida>div{display:flex;justify-content:space-between;align-items:center;font-size:14px}

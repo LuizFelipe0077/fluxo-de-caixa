@@ -20,7 +20,13 @@ export const TAXAS_CREDITO = Object.freeze([
   0.0949, 0.0968, 0.1037, 0.1105, 0.1227, 0.1238
 ]);
 
-export const FORMAS_PAGAMENTO = Object.freeze(['Pix', 'Dinheiro', 'Débito', 'Crédito']);
+/** Tabela do Link de pagamento (taxas próprias, distintas do crédito): índice 0 = 1x ... 11 = 12x. */
+export const TAXAS_LINK = Object.freeze([
+  0.0409, 0.0679, 0.0709, 0.0899, 0.0909, 0.1019,
+  0.1049, 0.1068, 0.1137, 0.1205, 0.1327, 0.1438
+]);
+
+export const FORMAS_PAGAMENTO = Object.freeze(['Pix', 'Dinheiro', 'Débito', 'Crédito', 'Link de pagamento']);
 export const SERVICOS = Object.freeze(['Tratamento estrias', 'Saúde integrativa', 'Melasma', 'Outros']);
 export const TIPOS_ENTRADA = Object.freeze(['Procedimento', 'Sinal', 'Avaliação', 'Homecare', 'Diferença']);
 export const CATEGORIAS_SAIDA = Object.freeze(['Despesa', 'Retirada']);
@@ -37,6 +43,8 @@ export function calcularLucroObtido({ bruto, desconto = 0, forma, indiceParcela 
     taxa = TAXA_DEBITO;
   } else if (forma === 'Crédito' && indiceParcela >= 0) {
     taxa = TAXAS_CREDITO[indiceParcela] || 0;
+  } else if (forma === 'Link de pagamento' && indiceParcela >= 0) {
+    taxa = TAXAS_LINK[indiceParcela] || 0;
   }
   const valorTaxa = base * taxa;
   return {
@@ -47,10 +55,11 @@ export function calcularLucroObtido({ bruto, desconto = 0, forma, indiceParcela 
   };
 }
 
-/** Descrição textual da parcela (ex.: "3x de 6,09%"). */
-export function descreverParcela(indiceParcela) {
-  if (indiceParcela < 0 || indiceParcela >= TAXAS_CREDITO.length) return '';
-  const percentual = (TAXAS_CREDITO[indiceParcela] * 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+/** Descrição textual da parcela (ex.: "3x de 6,09%"), usando a tabela da forma. */
+export function descreverParcela(indiceParcela, forma = 'Crédito') {
+  const tabela = forma === 'Link de pagamento' ? TAXAS_LINK : TAXAS_CREDITO;
+  if (indiceParcela < 0 || indiceParcela >= tabela.length) return '';
+  const percentual = (tabela[indiceParcela] * 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
   return `${indiceParcela + 1}x de ${percentual}%`;
 }
 

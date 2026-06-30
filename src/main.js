@@ -8,7 +8,7 @@ import { estado } from './core/estado.js';
 import { sessao } from './core/auth.js';
 import { api } from './services/api.js';
 import {
-  calcularLucroObtido, descreverParcela, TAXAS_CREDITO,
+  calcularLucroObtido, descreverParcela, TAXAS_CREDITO, TAXAS_LINK, TAXA_DEBITO,
   FORMAS_PAGAMENTO, SERVICOS, TIPOS_ENTRADA, CATEGORIAS_SAIDA, TIPOS_SAIDA,
   listarMesesDisponiveis
 } from './domain/financeiro.js';
@@ -193,7 +193,6 @@ function aplicarFiltrosEntradas() {
   const fPagamento = $('entradas-fpagamento').value;
   const lista = estado.obter('entradas')
     .slice()
-    .sort((a, b) => String(b.data).localeCompare(String(a.data)))
     .filter(e => {
       if (f.de && obterAnoMesDia(e.data) < f.de) return false;
       if (f.ate && obterAnoMesDia(e.data) > f.ate) return false;
@@ -211,7 +210,6 @@ function aplicarFiltrosSaidas() {
   const fTipo = $('saidas-ftipo').value;
   const lista = estado.obter('saidas')
     .slice()
-    .sort((a, b) => String(b.data).localeCompare(String(a.data)))
     .filter(s => {
       if (f.de && obterAnoMesDia(s.data) < f.de) return false;
       if (f.ate && obterAnoMesDia(s.data) > f.ate) return false;
@@ -243,9 +241,7 @@ function preencherSelect(id, valores, { placeholder } = {}) {
 function configurarSelects() {
   preencherSelect('e-servico', SERVICOS);
   preencherSelect('e-tipo', TIPOS_ENTRADA, { placeholder: '—' });
-  const parcelas = $('e-parcela');
-  parcelas.replaceChildren();
-  TAXAS_CREDITO.forEach((_, i) => parcelas.appendChild(opcao(String(i), descreverParcela(i))));
+  preencherParcelas('Crédito');
   preencherSelect('s-categoria', CATEGORIAS_SAIDA);
   preencherSelect('s-tipo', TIPOS_SAIDA);
 
@@ -255,6 +251,16 @@ function configurarSelects() {
   preencherSelect('saidas-ftipo', TIPOS_SAIDA, { placeholder: 'Todos' });
 }
 
+/** Preenche o dropdown de parcelas com os rótulos da tabela da forma (Crédito ou Link). */
+function preencherParcelas(forma) {
+  const select = $('e-parcela');
+  const indiceAtual = select.value;
+  const tabela = forma === 'Link de pagamento' ? TAXAS_LINK : TAXAS_CREDITO;
+  select.replaceChildren();
+  tabela.forEach((_, i) => select.appendChild(opcao(String(i), descreverParcela(i, forma))));
+  if (indiceAtual !== '') select.value = indiceAtual;   // mantém a parcela escolhida ao alternar
+}
+
 function selecionarForma(forma) {
   formaSelecionada = forma;
   document.querySelectorAll('#e-forma .seg-btn').forEach(b => {
@@ -262,14 +268,36 @@ function selecionarForma(forma) {
     b.classList.toggle('ativo', ativo);
     b.setAttribute('aria-pressed', String(ativo));
   });
-  $('e-parcela-grupo').hidden = forma !== 'Crédito';
+
+  const grupo = $('e-parcela-grupo');
+  const select = $('e-parcela');
+  const taxaDebito = $('e-debito-taxa');
+  const rotulo = $('e-area-rotulo');
+  const usaParcelas = forma === 'Crédito' || forma === 'Link de pagamento';
+
+  if (usaParcelas) {                 // Crédito / Link → dropdown de parcelas
+    grupo.hidden = false;
+    select.hidden = false;
+    taxaDebito.hidden = true;
+    rotulo.textContent = 'Parcelas';
+    preencherParcelas(forma);        // rótulos com os juros da tabela correta (Crédito ≠ Link)
+  } else if (forma === 'Débito') {   // Débito → campo informativo de taxa, no mesmo lugar
+    grupo.hidden = false;
+    select.hidden = true;
+    taxaDebito.hidden = false;
+    taxaDebito.value = 'Taxa: ' + (TAXA_DEBITO * 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) + '%';
+    rotulo.textContent = 'Taxa da maquininha';
+  } else {                           // Pix / Dinheiro → área inativa
+    grupo.hidden = true;
+  }
   atualizarPreviaCalculo();
 }
 
 function atualizarPreviaCalculo() {
   const bruto = Number(String($('e-bruto').value).replace(',', '.')) || 0;
   const desconto = Number(String($('e-desconto').value).replace(',', '.')) || 0;
-  const indiceParcela = formaSelecionada === 'Crédito' ? (Number($('e-parcela').value) || 0) : -1;
+  const usaParcelas = formaSelecionada === 'Crédito' || formaSelecionada === 'Link de pagamento';
+  const indiceParcela = usaParcelas ? (Number($('e-parcela').value) || 0) : -1;
   const r = calcularLucroObtido({ bruto, desconto, forma: formaSelecionada, indiceParcela });
   $('calc-base').textContent = formatarMoeda(r.base);
   $('calc-taxa').textContent = '– ' + formatarMoeda(r.valorTaxa);
@@ -310,7 +338,8 @@ function abrirEditarEntrada(id) {
   selecionarForma(e.forma || 'Pix');
   $('e-bruto').value = e.bruto || '';
   $('e-desconto').value = e.desconto || '';
-  if (e.forma === 'Crédito') {
+  $('e-obs').value = e.observacoes || '';
+  if (e.forma === 'Crédito' || e.forma === 'Link de pagamento') {
     const n = parseInt(e.parcela, 10);
     $('e-parcela').value = String((Number.isFinite(n) ? n : 1) - 1);
   }
@@ -336,7 +365,8 @@ function abrirEditarSaida(id) {
 /* ===================== MONTAGEM + VALIDAÇÃO ===================== */
 function montarRegistroEntrada() {
   const forma = validarOpcao(formaSelecionada, FORMAS_PAGAMENTO, 'pagamento');
-  const indiceParcela = forma === 'Crédito' ? (Number($('e-parcela').value) || 0) : -1;
+  const usaParcelas = forma === 'Crédito' || forma === 'Link de pagamento';
+  const indiceParcela = usaParcelas ? (Number($('e-parcela').value) || 0) : -1;
   const bruto = validarValorMonetario($('e-bruto').value, { permitirZero: false });
   const desconto = validarValorMonetario($('e-desconto').value || 0);
   if (desconto > bruto) throw new ErroDeValidacao('Desconto maior que o valor bruto.');
@@ -353,8 +383,9 @@ function montarRegistroEntrada() {
     tipo: $('e-tipo').value ? validarOpcao($('e-tipo').value, TIPOS_ENTRADA, 'tipo') : '',
     forma,
     bruto, desconto,
-    parcela: forma === 'Crédito' ? descreverParcela(indiceParcela) : '',
+    parcela: usaParcelas ? descreverParcela(indiceParcela, forma) : '',
     obtido,
+    observacoes: sanitizarEntradaDeDados($('e-obs').value, 120),
     usuario: estado.obter('usuario'),
     timestamp: carimboDeTempoAgora()
   };
@@ -432,6 +463,9 @@ async function aoSalvarSaida(evento) {
   const textoOriginal = botao.textContent;
   botao.disabled = true;
   botao.textContent = 'Salvando…';
+
+  // Etapa 1 — SALVAR. Só este bloco decide sucesso/erro do salvamento.
+  let salvou = false;
   try {
     if (idSaidaEmEdicao) {
       registro.id = idSaidaEmEdicao;
@@ -439,13 +473,22 @@ async function aoSalvarSaida(evento) {
     } else {
       await persistir(api.adicionarSaida(registro), 'Saída registrada');
     }
+    salvou = true;
     fecharDialogo('dialogo-saida');
-    await recarregarLocal();
   } catch (erro) {
     exibirToast(erro instanceof ErroDeValidacao ? erro.message : 'Erro ao salvar.', 'erro');
   } finally {
     botao.disabled = false;
     botao.textContent = textoOriginal;
+  }
+
+  // Etapa 2 — ATUALIZAR A TELA. Nunca reabre o erro de salvamento.
+  if (salvou) {
+    try {
+      await recarregarLocal();
+    } catch {
+      exibirToast('Salvo. Recarregue a página para atualizar a lista.', 'ok');
+    }
   }
 }
 

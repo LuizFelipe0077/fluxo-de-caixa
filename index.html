@@ -229,13 +229,20 @@
         <button type="button" data-pagamento="Dinheiro" class="seg-btn" aria-pressed="false">Dinheiro</button>
         <button type="button" data-pagamento="Débito" class="seg-btn" aria-pressed="false">Débito</button>
         <button type="button" data-pagamento="Crédito" class="seg-btn" aria-pressed="false">Crédito</button>
+        <button type="button" data-pagamento="Link de pagamento" class="seg-btn seg-btn-largo" aria-pressed="false">Link de pagamento</button>
       </div>
 
       <div class="form-grade">
         <div class="campo"><label class="campo-rotulo" for="e-bruto">Valor bruto (R$)</label><input type="number" step="0.01" min="0" id="e-bruto" inputmode="decimal" placeholder="0,00" required></div>
-        <div class="campo"><label class="campo-rotulo" for="e-desconto">Desconto (R$)</label><input type="number" step="0.01" min="0" id="e-desconto" inputmode="decimal" placeholder="0,00"></div>
-        <div class="campo" id="e-parcela-grupo" hidden><label class="campo-rotulo" for="e-parcela">Parcelas</label><select id="e-parcela"></select></div>
+        <div class="campo" id="e-desconto-grupo"><label class="campo-rotulo" for="e-desconto">Desconto (R$)</label><input type="number" step="0.01" min="0" id="e-desconto" inputmode="decimal" placeholder="0,00"></div>
+        <div class="campo" id="e-parcela-grupo" hidden>
+          <label class="campo-rotulo" id="e-area-rotulo" for="e-parcela">Parcelas</label>
+          <select id="e-parcela"></select>
+          <input type="text" id="e-debito-taxa" class="campo-info" value="Taxa: 0,89%" readonly tabindex="-1" hidden>
+        </div>
       </div>
+
+      <label class="campo bloco-obs"><span class="campo-rotulo">Observações <i>(opcional)</i></span><input type="text" id="e-obs" placeholder="Detalhes adicionais"></label>
 
       <div class="calc-saida" aria-live="polite">
         <div><span>Base</span><strong id="calc-base">R$ 0,00</strong></div>

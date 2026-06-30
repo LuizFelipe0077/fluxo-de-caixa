@@ -22,6 +22,7 @@ function normalizarEntrada(registro, indice) {
     desconto: Number(registro.desconto) || 0,
     parcela: registro.parcela || '',
     obtido: Number(registro.obtido) || 0,
+    observacoes: registro.observacoes || '',
     usuario: registro.usuario || '—',
     timestamp: registro.timestamp || ''
   };
