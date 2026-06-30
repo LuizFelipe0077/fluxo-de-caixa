@@ -246,9 +246,8 @@ export function renderizarEntradas(lista) {
     if (e.tipo) chips.push(chip(e.tipo));
     chips.push(chip(`${e.forma || '—'}${e.parcela ? ' · ' + e.parcela : ''}`));
     if (e.desconto > 0) chips.push(chip(`desc. ${formatarMoeda(e.desconto)}`));
-    if (e.observacoes) chips.push(chipObs(e.observacoes));
     box.appendChild(cartaoMovimentacao({
-      tipo: 'in', registro: 'entrada', id: e.id, titulo: e.nome || '—', valor: e.obtido, data: e.data, usuario: e.usuario, chips
+      tipo: 'in', registro: 'entrada', id: e.id, titulo: e.nome || '—', valor: e.obtido, data: e.data, usuario: e.usuario, chips, observacoes: e.observacoes
     }));
   }
 }
@@ -262,14 +261,13 @@ export function renderizarSaidas(lista) {
 
   for (const s of ordenarRecentePrimeiro(lista)) {
     const chips = [chip(s.categoria, true), chip(s.tipo)];
-    if (s.observacoes) chips.push(chipObs(s.observacoes));
     box.appendChild(cartaoMovimentacao({
-      tipo: 'out', registro: 'saida', id: s.id, titulo: s.subcategoria || s.categoria, valor: s.valor, data: s.data, usuario: s.usuario, chips
+      tipo: 'out', registro: 'saida', id: s.id, titulo: s.subcategoria || s.categoria, valor: s.valor, data: s.data, usuario: s.usuario, chips, observacoes: s.observacoes
     }));
   }
 }
 
-function cartaoMovimentacao({ tipo, registro, id, titulo, valor, data, usuario, chips }) {
+function cartaoMovimentacao({ tipo, registro, id, titulo, valor, data, usuario, chips, observacoes }) {
   const card = criarElemento('article', { classe: 'cartao-mov' });
   const acento = criarElemento('div', { classe: `mov-acento ${tipo}` });
 
@@ -298,7 +296,12 @@ function cartaoMovimentacao({ tipo, registro, id, titulo, valor, data, usuario, 
     direita
   );
 
-  corpo.append(topo, meta, rodape);
+  corpo.append(topo, meta);
+  // Observações (opcional): linha em itálico, leve, abaixo dos metadados.
+  // textContent já neutraliza HTML/scripts — seguro contra XSS.
+  const obs = (observacoes || '').trim();
+  if (obs) corpo.append(criarElemento('p', { classe: 'mov-obs', texto: obs }));
+  corpo.append(rodape);
   card.append(acento, corpo);
   return card;
 }
@@ -313,12 +316,6 @@ function botaoAcao(acao, registro, id, icone, rotulo) {
 
 function chip(texto, destaque = false) {
   return criarElemento('span', { classe: `chip ${destaque ? 'chip-destaque' : ''}`, texto });
-}
-
-/** Chip de observação: mesmo estilo dos demais, com marcador "·" e truncagem por CSS.
- *  title leva o texto completo (tooltip ao passar o mouse). textContent é seguro contra XSS. */
-function chipObs(texto) {
-  return criarElemento('span', { classe: 'chip chip-obs', texto, atributos: { title: texto } });
 }
 
 function resumoLista(id, esquerda, total) {
