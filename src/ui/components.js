@@ -90,10 +90,10 @@ export function renderizarPainel(estadoAtual) {
 }
 
 function renderizarRecentes(ents, sais) {
-  const itens = [
+  const itens = ordenarRecentePrimeiro([
     ...ents.map(e => ({ tipo: 'in', data: e.data, titulo: e.nome, sub: e.servico, valor: e.obtido })),
     ...sais.map(s => ({ tipo: 'out', data: s.data, titulo: s.subcategoria || s.categoria, sub: s.categoria, valor: s.valor }))
-  ].sort((a, b) => String(b.data).localeCompare(String(a.data))).slice(0, 6);
+  ]).slice(0, 6);
 
   const box = $('lista-recentes');
   vazio(box);
@@ -237,7 +237,7 @@ export function renderizarEntradas(lista) {
     chips.push(chip(`${e.forma || '—'}${e.parcela ? ' · ' + e.parcela : ''}`));
     if (e.desconto > 0) chips.push(chip(`desc. ${formatarMoeda(e.desconto)}`));
     box.appendChild(cartaoMovimentacao({
-      tipo: 'in', registro: 'entrada', id: e.id, titulo: e.nome || '—', valor: e.obtido, data: e.data, usuario: e.usuario, chips
+      tipo: 'in', registro: 'entrada', id: e.id, titulo: e.nome || '—', valor: e.obtido, data: e.data, usuario: e.usuario, chips, observacoes: e.observacoes
     }));
   }
 }
@@ -258,7 +258,7 @@ export function renderizarSaidas(lista) {
   }
 }
 
-function cartaoMovimentacao({ tipo, registro, id, titulo, valor, data, usuario, chips }) {
+function cartaoMovimentacao({ tipo, registro, id, titulo, valor, data, usuario, chips, observacoes }) {
   const card = criarElemento('article', { classe: 'cartao-mov' });
   const acento = criarElemento('div', { classe: `mov-acento ${tipo}` });
 
@@ -287,7 +287,11 @@ function cartaoMovimentacao({ tipo, registro, id, titulo, valor, data, usuario, 
     direita
   );
 
-  corpo.append(topo, meta, rodape);
+  corpo.append(topo, meta);
+  // Observações (opcional): textContent já neutraliza HTML/scripts — seguro contra XSS.
+  const obs = (observacoes || '').trim();
+  if (obs) corpo.append(criarElemento('p', { classe: 'mov-obs', texto: obs }));
+  corpo.append(rodape);
   card.append(acento, corpo);
   return card;
 }

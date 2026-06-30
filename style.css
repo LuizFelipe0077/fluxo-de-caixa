@@ -212,6 +212,7 @@ input[type="date"]{min-height:46px}
 .mov-acao{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;color:var(--tinta-3);border:1px solid transparent;transition:background .15s var(--suave),color .15s var(--suave),border-color .15s var(--suave)}
 .mov-acao:hover{background:var(--bg-2);color:var(--tinta);border-color:var(--linha)}
 .mov-acao.excluir:hover{background:var(--out-tint);color:var(--out);border-color:transparent}
+.mov-obs{margin-top:7px;font-size:12px;line-height:1.4;color:var(--tinta-3);font-style:italic;word-break:break-word}
 
 .estado-vazio{text-align:center;padding:46px 20px;color:var(--tinta-3)}
 .estado-vazio svg{opacity:.4;margin-bottom:12px}

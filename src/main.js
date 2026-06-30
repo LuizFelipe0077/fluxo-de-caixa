@@ -550,8 +550,8 @@ async function exportarParaExcel() {
   const saidas = filtra(estado.obter('saidas'));
 
   const abaEntrada = [
-    ['Data', 'Nome', 'CPF', 'Serviços', 'Tipo', 'Forma de pagamento', 'Lucro Bruto', 'V/Desconto (R$)', 'Parcelas', 'Lucro Obtido', 'Registrado por', 'Em'],
-    ...entradas.map(e => [formatarDataBR(e.data), e.nome, e.cpf, e.servico, e.tipo, e.forma, e.bruto, e.desconto, e.parcela, e.obtido, e.usuario, e.timestamp])
+    ['Data', 'Nome', 'CPF', 'Serviços', 'Tipo', 'Forma de pagamento', 'Lucro Bruto', 'V/Desconto (R$)', 'Parcelas', 'Lucro Obtido', 'Observações', 'Registrado por', 'Em'],
+    ...entradas.map(e => [formatarDataBR(e.data), e.nome, e.cpf, e.servico, e.tipo, e.forma, e.bruto, e.desconto, e.parcela, e.obtido, e.observacoes || '', e.usuario, e.timestamp])
   ];
   const abaSaida = [
     ['Data', 'Categoria', 'SubCategoria', 'Tipo', 'Valor (R$)', 'Observações', 'Registrado por', 'Em'],
@@ -561,7 +561,7 @@ async function exportarParaExcel() {
   const wb = XLSX.utils.book_new();
   const wsE = XLSX.utils.aoa_to_sheet(abaEntrada);
   const wsS = XLSX.utils.aoa_to_sheet(abaSaida);
-  wsE['!cols'] = [{ wch: 11 }, { wch: 24 }, { wch: 16 }, { wch: 18 }, { wch: 13 }, { wch: 18 }, { wch: 12 }, { wch: 14 }, { wch: 12 }, { wch: 13 }, { wch: 13 }, { wch: 18 }];
+  wsE['!cols'] = [{ wch: 11 }, { wch: 24 }, { wch: 16 }, { wch: 18 }, { wch: 13 }, { wch: 18 }, { wch: 12 }, { wch: 14 }, { wch: 12 }, { wch: 13 }, { wch: 26 }, { wch: 13 }, { wch: 18 }];
   wsS['!cols'] = [{ wch: 11 }, { wch: 12 }, { wch: 22 }, { wch: 11 }, { wch: 12 }, { wch: 26 }, { wch: 13 }, { wch: 18 }];
   XLSX.utils.book_append_sheet(wb, wsE, 'Entrada');
   XLSX.utils.book_append_sheet(wb, wsS, 'Saída');
