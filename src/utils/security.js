@@ -88,8 +88,9 @@ export function gerarTokenSessao() {
 
 /** Erro de validação tipado, para distinguir de erros inesperados. */
 export class ErroDeValidacao extends Error {
-  constructor(mensagem) {
+  constructor(mensagem, campo = null) {
     super(mensagem);
     this.name = 'ErroDeValidacao';
+    this.campo = campo;   // id do input a destacar na UI (opcional)
   }
 }

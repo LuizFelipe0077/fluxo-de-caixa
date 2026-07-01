@@ -98,16 +98,48 @@ async function carregarDados() {
   }
 }
 
-async function recarregarLocal() {
-  const { entradas, saidas } = await api.carregarLancamentos();
-  estado.definir({ entradas, saidas });
+/** Aplica a mudança já confirmada pelo servidor direto no estado local (atualização
+ *  otimista): a lista reflete a ação NA HORA, sem depender do reload dar certo. */
+function aplicarMudancaLocal(tipo, registro) {
+  const chave = tipo === 'entrada' ? 'entradas' : 'saidas';
+  const lista = estado.obter(chave).slice();
+  const i = lista.findIndex(x => String(x.id) === String(registro.id));
+  if (i >= 0) lista[i] = registro; else lista.push(registro);
+  estado.definir({ [chave]: lista });
   renderizarTudo();
+}
+
+function removerLocal(tipo, id) {
+  const chave = tipo === 'entrada' ? 'entradas' : 'saidas';
+  estado.definir({ [chave]: estado.obter(chave).filter(x => String(x.id) !== String(id)) });
+  renderizarTudo();
+}
+
+/** Rebusca do servidor em segundo plano para reconciliar (autor/timestamp oficiais).
+ *  Silencioso: se falhar, a UI já está correta pela atualização otimista. */
+function reconciliarEmSegundoPlano() {
+  api.carregarLancamentos()
+    .then(({ entradas, saidas }) => { estado.definir({ entradas, saidas }); renderizarTudo(); })
+    .catch(() => { /* sem toast: a tela já reflete a mudança */ });
 }
 
 function renderizarTudo() {
   renderizarPainel(estado.obter());
   aplicarFiltrosEntradas();
   aplicarFiltrosSaidas();
+}
+
+/* ===================== DESTAQUE DE CAMPO OBRIGATÓRIO ===================== */
+function limparErros(idFormulario) {
+  document.querySelectorAll(`#${idFormulario} .campo-erro`).forEach(el => el.classList.remove('campo-erro'));
+}
+
+function marcarCampoErro(idCampo) {
+  const campo = $(idCampo);
+  if (!campo) return;
+  campo.classList.add('campo-erro');
+  campo.focus();
+  campo.scrollIntoView({ block: 'center', behavior: 'smooth' });
 }
 
 /* ===================== NAVEGAÇÃO ===================== */
@@ -310,6 +342,7 @@ function abrirNovaEntrada() {
   $('titulo-dialogo-entrada').textContent = 'Nova entrada';
   $('btn-salvar-entrada').textContent = 'Salvar entrada';
   $('form-entrada').reset();
+  limparErros('form-entrada');
   $('e-data').value = dataDeHojeISO();
   selecionarForma('Pix');
   abrirDialogo('dialogo-entrada');
@@ -320,6 +353,7 @@ function abrirNovaSaida() {
   $('titulo-dialogo-saida').textContent = 'Nova saída';
   $('btn-salvar-saida').textContent = 'Salvar saída';
   $('form-saida').reset();
+  limparErros('form-saida');
   $('s-data').value = dataDeHojeISO();
   abrirDialogo('dialogo-saida');
 }
@@ -367,13 +401,20 @@ function montarRegistroEntrada() {
   const forma = validarOpcao(formaSelecionada, FORMAS_PAGAMENTO, 'pagamento');
   const usaParcelas = forma === 'Crédito' || forma === 'Link de pagamento';
   const indiceParcela = usaParcelas ? (Number($('e-parcela').value) || 0) : -1;
-  const bruto = validarValorMonetario($('e-bruto').value, { permitirZero: false });
+
+  const nome = sanitizarEntradaDeDados($('e-nome').value, 80);
+  if (!nome) throw new ErroDeValidacao('Informe o nome do cliente.', 'e-nome');
+
+  let bruto;
+  try {
+    bruto = validarValorMonetario($('e-bruto').value, { permitirZero: false });
+  } catch (e) {
+    throw new ErroDeValidacao('Informe o valor bruto.', 'e-bruto');
+  }
   const desconto = validarValorMonetario($('e-desconto').value || 0);
-  if (desconto > bruto) throw new ErroDeValidacao('Desconto maior que o valor bruto.');
+  if (desconto > bruto) throw new ErroDeValidacao('Desconto maior que o valor bruto.', 'e-desconto');
 
   const { obtido } = calcularLucroObtido({ bruto, desconto, forma, indiceParcela });
-  const nome = sanitizarEntradaDeDados($('e-nome').value, 80);
-  if (!nome) throw new ErroDeValidacao('Informe o nome do cliente.');
 
   return {
     data: validarDataISO($('e-data').value),
@@ -392,12 +433,22 @@ function montarRegistroEntrada() {
 }
 
 function montarRegistroSaida() {
+  const subcategoria = sanitizarEntradaDeDados($('s-subcategoria').value, 60);
+  if (!subcategoria) throw new ErroDeValidacao('Informe a descrição (subcategoria).', 's-subcategoria');
+
+  let valor;
+  try {
+    valor = validarValorMonetario($('s-valor').value, { permitirZero: false });
+  } catch (e) {
+    throw new ErroDeValidacao('Informe o valor.', 's-valor');
+  }
+
   return {
     data: validarDataISO($('s-data').value),
     categoria: validarOpcao($('s-categoria').value, CATEGORIAS_SAIDA, 'categoria'),
-    subcategoria: sanitizarEntradaDeDados($('s-subcategoria').value, 60),
+    subcategoria,
     tipo: validarOpcao($('s-tipo').value, TIPOS_SAIDA, 'tipo'),
-    valor: validarValorMonetario($('s-valor').value, { permitirZero: false }),
+    valor,
     observacoes: sanitizarEntradaDeDados($('s-obs').value, 120),
     usuario: estado.obter('usuario'),
     timestamp: carimboDeTempoAgora()
@@ -407,10 +458,12 @@ function montarRegistroSaida() {
 /* ===================== SALVAR (anti-duplo-clique) ===================== */
 async function aoSalvarEntrada(evento) {
   evento.preventDefault();
+  limparErros('form-entrada');
   let registro;
   try {
     registro = montarRegistroEntrada();
   } catch (erro) {
+    if (erro instanceof ErroDeValidacao && erro.campo) marcarCampoErro(erro.campo);
     exibirToast(erro instanceof ErroDeValidacao ? erro.message : 'Erro ao salvar.', 'erro');
     return;
   }
@@ -420,17 +473,18 @@ async function aoSalvarEntrada(evento) {
   botao.disabled = true;
   botao.textContent = 'Salvando…';
 
-  // Etapa 1 — SALVAR. Só este bloco decide sucesso/erro do salvamento.
   let salvou = false;
   try {
     if (idEntradaEmEdicao) {
       registro.id = idEntradaEmEdicao;
       await persistir(api.editarEntrada(registro), 'Entrada atualizada');
     } else {
-      await persistir(api.adicionarEntrada(registro), 'Entrada registrada');
+      const resposta = await persistir(api.adicionarEntrada(registro), 'Entrada registrada');
+      registro.id = (resposta && resposta.id) ? resposta.id : ('e_' + Date.now());
     }
-    salvou = true;                         // o servidor confirmou: ponto de não-retorno
-    fecharDialogo('dialogo-entrada');      // fecha antes de liberar o botão (evita corrida)
+    salvou = true;
+    aplicarMudancaLocal('entrada', registro);   // atualiza a lista na hora (otimista)
+    fecharDialogo('dialogo-entrada');
   } catch (erro) {
     exibirToast(erro instanceof ErroDeValidacao ? erro.message : 'Erro ao salvar.', 'erro');
   } finally {
@@ -438,23 +492,17 @@ async function aoSalvarEntrada(evento) {
     botao.textContent = textoOriginal;
   }
 
-  // Etapa 2 — ATUALIZAR A TELA. Roda só se salvou e NUNCA reabre o erro de salvamento:
-  // se o recarregamento falhar, o dado já está gravado — apenas a lista não atualizou.
-  if (salvou) {
-    try {
-      await recarregarLocal();
-    } catch {
-      exibirToast('Salvo. Recarregue a página para atualizar a lista.', 'ok');
-    }
-  }
+  if (salvou) reconciliarEmSegundoPlano();       // reconcilia com o servidor em 2º plano
 }
 
 async function aoSalvarSaida(evento) {
   evento.preventDefault();
+  limparErros('form-saida');
   let registro;
   try {
     registro = montarRegistroSaida();
   } catch (erro) {
+    if (erro instanceof ErroDeValidacao && erro.campo) marcarCampoErro(erro.campo);
     exibirToast(erro instanceof ErroDeValidacao ? erro.message : 'Erro ao salvar.', 'erro');
     return;
   }
@@ -464,16 +512,17 @@ async function aoSalvarSaida(evento) {
   botao.disabled = true;
   botao.textContent = 'Salvando…';
 
-  // Etapa 1 — SALVAR. Só este bloco decide sucesso/erro do salvamento.
   let salvou = false;
   try {
     if (idSaidaEmEdicao) {
       registro.id = idSaidaEmEdicao;
       await persistir(api.editarSaida(registro), 'Saída atualizada');
     } else {
-      await persistir(api.adicionarSaida(registro), 'Saída registrada');
+      const resposta = await persistir(api.adicionarSaida(registro), 'Saída registrada');
+      registro.id = (resposta && resposta.id) ? resposta.id : ('s_' + Date.now());
     }
     salvou = true;
+    aplicarMudancaLocal('saida', registro);
     fecharDialogo('dialogo-saida');
   } catch (erro) {
     exibirToast(erro instanceof ErroDeValidacao ? erro.message : 'Erro ao salvar.', 'erro');
@@ -482,20 +531,14 @@ async function aoSalvarSaida(evento) {
     botao.textContent = textoOriginal;
   }
 
-  // Etapa 2 — ATUALIZAR A TELA. Nunca reabre o erro de salvamento.
-  if (salvou) {
-    try {
-      await recarregarLocal();
-    } catch {
-      exibirToast('Salvo. Recarregue a página para atualizar a lista.', 'ok');
-    }
-  }
+  if (salvou) reconciliarEmSegundoPlano();
 }
 
 async function persistir(promessa, mensagemOk) {
   const resposta = await promessa;
   if (resposta && resposta.ok === false) throw new ErroDeValidacao(resposta.erro || 'O servidor recusou a operação.');
   exibirToast(mensagemOk + ' ✓', 'ok');
+  return resposta;
 }
 
 /* ===================== EXCLUIR ===================== */
@@ -511,7 +554,8 @@ async function confirmarExcluir(registro, id) {
       registro === 'entrada' ? api.excluirEntrada(id) : api.excluirSaida(id),
       'Registro excluído'
     );
-    await recarregarLocal();
+    removerLocal(registro, id);            // some da lista na hora (otimista)
+    reconciliarEmSegundoPlano();
   } catch (erro) {
     exibirToast(erro instanceof ErroDeValidacao ? erro.message : 'Erro ao excluir.', 'erro');
   }
@@ -618,6 +662,9 @@ function registrarEventos() {
 
   $('form-entrada').addEventListener('submit', aoSalvarEntrada);
   $('form-saida').addEventListener('submit', aoSalvarSaida);
+  // remove o destaque de erro do campo assim que o usuário começa a corrigi-lo
+  $('form-entrada').addEventListener('input', e => e.target.classList.remove('campo-erro'));
+  $('form-saida').addEventListener('input', e => e.target.classList.remove('campo-erro'));
 
   $('lista-entradas').addEventListener('click', aoClicarNaLista);
   $('lista-saidas').addEventListener('click', aoClicarNaLista);
